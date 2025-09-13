@@ -12,12 +12,12 @@
 #include <vector>
 
 struct VideoMetadata {
-    int64_t duration = 0;
-    int bitrate = 0;
-    int width = 0;
-    int height = 0;
-    double averageFrameRate = -1;
-    HdrType hdr = HdrType::HdrType_None;
+    int64_t duration;
+    int bitrate;
+    int width;
+    int height;
+    double averageFrameRate;
+    HdrType hdr;
     std::string codec;
     std::string codec_full;
     

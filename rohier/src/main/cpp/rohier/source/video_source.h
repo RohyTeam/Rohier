@@ -7,8 +7,11 @@
 #ifndef ROHIER_VIDEO_SOURCE_H
 #define ROHIER_VIDEO_SOURCE_H
 
+#include <string>
+
 struct VideoSource {
-    
+    std::string path; 
+    bool isUrl; // http://, https://, webdav:// etc,
 };
 
 #endif //ROHIER_VIDEO_SOURCE_H
