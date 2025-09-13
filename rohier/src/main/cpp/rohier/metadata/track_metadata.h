@@ -346,6 +346,8 @@ AVChannelLayout* ChannelLayout_Rohier2FFmpeg(ChannelLayout channelLayout) {
             return new AVChannelLayout(AV_CHANNEL_LAYOUT_HEXADECAGONAL);
         case ChannelLayout::ChannelLayout_22Point2:
             return new AVChannelLayout(AV_CHANNEL_LAYOUT_22POINT2);
+        default:
+            return nullptr; 
     }
 }
 

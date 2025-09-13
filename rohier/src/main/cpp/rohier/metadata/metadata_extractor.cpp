@@ -133,7 +133,6 @@ std::vector<uint8_t> extract_cover_image(AVFormatContext* fmt_ctx, int video_str
         }
         
         if (avcodec_receive_frame(codec_ctx.get(), frame.get()) >= 0) {
-            // 如果已经是JPEG编码，直接使用原始数据
             if (codec_params->codec_id == AV_CODEC_ID_MJPEG) {
                 return {pkt->data, pkt->data + pkt->size};
             }
