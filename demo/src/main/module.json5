@@ -1,0 +1,51 @@
+{
+  "module": {
+    "name": "demo",
+    "type": "entry",
+    "description": "$string:module_desc",
+    "mainElement": "RohierDemoAbility",
+    "deviceTypes": [
+      "tablet",
+      "2in1"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "pages": "$profile:main_pages",
+    "abilities": [
+      {
+        "name": "RohierDemoAbility",
+        "srcEntry": "./ets/rohierdemoability/RohierDemoAbility.ets",
+        "description": "$string:RohierDemoAbility_desc",
+        "icon": "$media:layered_image",
+        "label": "$string:RohierDemoAbility_label",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true,
+        "skills": [
+          {
+            "entities": [
+              "entity.system.home"
+            ],
+            "actions": [
+              "action.system.home"
+            ]
+          }
+        ]
+      }
+    ],
+    "extensionAbilities": [
+      {
+        "name": "DemoBackupAbility",
+        "srcEntry": "./ets/demobackupability/DemoBackupAbility.ets",
+        "type": "backup",
+        "exported": false,
+        "metadata": [
+          {
+            "name": "ohos.extension.backup",
+            "resource": "$profile:backup_config"
+          }
+        ],
+      }
+    ]
+  }
+}

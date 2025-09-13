@@ -1,0 +1,60 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\deechael\\.ohos\\config\\default_Rohier_MOC4eC7JOr9pzbXdVd7Xs4gkkN69wjTlWemoEsJ2VPU=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B0E3BA56AAEDD843DC10D669342157BB3FD31D34D2317D9EBA4E3D47F6E800D776D62BD0630B935",
+          "profile": "C:\\Users\\deechael\\.ohos\\config\\default_Rohier_MOC4eC7JOr9pzbXdVd7Xs4gkkN69wjTlWemoEsJ2VPU=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\deechael\\.ohos\\config\\default_Rohier_MOC4eC7JOr9pzbXdVd7Xs4gkkN69wjTlWemoEsJ2VPU=.p12",
+          "storePassword": "0000001B869467632A37936AA25AB3D879E2B983DCDA5E61ADA52EE95FB0D941AF238D4380298DF215E046"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "5.0.5(17)",
+        "compatibleSdkVersion": "5.0.5(17)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "demo",
+      "srcPath": "./demo",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rohier",
+      "srcPath": "./rohier",
+    }
+  ]
+}
