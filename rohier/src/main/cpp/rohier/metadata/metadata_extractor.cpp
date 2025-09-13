@@ -386,8 +386,8 @@ std::shared_ptr<VideoMetadata> MetadataExtractor::extractMetadata(VideoSource* s
         
             std::unique_ptr<AVPacket, AVPacketReleaser> pkt(av_packet_alloc());
             
-            if (av_read_frame(fmt_ctx_ptr.get(), pkt.get()) >= 0) {
-                if (cover) {
+            if (cover) {
+                if (av_read_frame(fmt_ctx_ptr.get(), pkt.get()) >= 0) {
                     if (cover_stream_index >= 0 && pkt->stream_index == cover_stream_index) {
                         meta->cover.assign(pkt->data, pkt->data + pkt->size);
                     }
