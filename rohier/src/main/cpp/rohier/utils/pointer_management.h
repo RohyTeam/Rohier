@@ -3,6 +3,8 @@
 
 #include "multimedia/player_framework/native_avcodec_videodecoder.h"
 #include "multimedia/player_framework/native_avformat.h"
+#include "rohier/decoder/video/video_decoder.h"
+#include <multimedia/player_framework/native_avsource.h>
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -25,6 +27,14 @@ struct AVCodecContextReleaser {
     void operator() (AVCodecContext *ptr) const {
         if (ptr) {
             avcodec_free_context(&ptr);
+        }
+    }
+};
+
+struct AVDictionaryReleaser {
+    void operator() (AVDictionary *ptr) const {
+        if (ptr) {
+            av_dict_free(&ptr);
         }
     }
 };
@@ -53,6 +63,14 @@ struct OH_AVFormatReleaser {
     }
 };
 
+struct OH_AVSourceReleaser {
+    void operator() (OH_AVSource *ptr) const { 
+        if (ptr) {
+            OH_AVSource_Destroy(ptr);
+        }
+    }
+};
+
 struct SwsContextReleaser {
     void operator() (SwsContext* sws) const {
         if (sws) {
@@ -65,6 +83,14 @@ struct OH_VideoDecoderReleaser {
     void operator() (OH_AVCodec *ptr) const { 
         if (ptr) {
             OH_VideoDecoder_Destroy(ptr);
+        }
+    }
+};
+
+struct VideoDecoderReleaser {
+    void operator() (VideoDecoder *ptr) const { 
+        if (ptr) {
+            ptr->release();
         }
     }
 };

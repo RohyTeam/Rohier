@@ -2,6 +2,7 @@
 #define ROHIER_PLAYER_H
 
 #include "rohier/common/status.h"
+#include "rohier/metadata/video_metadata.h"
 #include "rohier/native_window/rohier_window_manager.h"
 #include "rohier/source/video_source.h"
 #include <cstdint>
@@ -11,33 +12,36 @@ public:
     RohierPlayer();
     ~RohierPlayer();
     
-    RohierStatus Init(RohierNativeWindow* window);
+    RohierStatus init(RohierNativeWindow* window);
     
-    RohierStatus SetSource(VideoSource* source);
+    RohierStatus set_source(VideoSource* source);
     
-    RohierStatus Prepare();
+    RohierStatus prepare();
     
-    RohierStatus PlayAll();
-    RohierStatus PlayVideo();
-    RohierStatus PlayAudio();
-    RohierStatus PlaySubtitle();
+    RohierStatus play_all();
+    RohierStatus play_video();
+    RohierStatus play_audio();
+    RohierStatus play_subtitle();
     
-    RohierStatus PauseAll();
-    RohierStatus PauseVideo();
-    RohierStatus PauseAudio();
-    RohierStatus PauseSubtitle();
+    RohierStatus pause_all();
+    RohierStatus pause_video();
+    RohierStatus pause_audio();
+    RohierStatus pause_subtitle();
     
-    RohierStatus SetAudioOffset(int64_t offset);
-    RohierStatus SetSubtitleOffset(int64_t offset);
+    RohierStatus set_audio_offset(int64_t offset);
+    RohierStatus set_subtitle_offset(int64_t offset);
     
-    RohierStatus Seek(uint64_t position);
+    RohierStatus seek(uint64_t position);
     
-    RohierStatus SetSpeed(uint32_t speed);
+    RohierStatus set_speed(uint32_t speed);
     
-    RohierStatus SelectTrack(uint32_t track);
-    RohierStatus DeselectTrack(uint32_t track);
+    RohierStatus select_track(uint32_t track);
+    RohierStatus deselect_track(uint32_t track);
     
-    RohierStatus Release();
+    RohierStatus release();
+    
+private:
+    std::shared_ptr<VideoMetadata> videoMetadata_;
 };
 
 #endif //ROHIER_PLAYER_H

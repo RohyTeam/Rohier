@@ -8,7 +8,7 @@ void Rohier_OnSurfaceCreatedCallback(OH_NativeXComponent *component, void *windo
       OH_NativeXComponent_GetXComponentId(component, name, &name_len);
     }
     std::shared_ptr<RohierNativeWindow> temp = std::make_shared<RohierNativeWindow>();
-    temp->nativeWindow = window;
+    temp->nativeWindow = (OHNativeWindow*) window;
     temp->id = name;
     temp->nativeXComponent = component;
     RohierWindowManager::getInstance()->addNativeXComponent(temp);

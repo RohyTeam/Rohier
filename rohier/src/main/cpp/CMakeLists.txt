@@ -1,6 +1,6 @@
 # the minimum version of CMake.
 cmake_minimum_required(VERSION 3.5.0)
-project(Rohier)
+project(RohierPlayer)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-int-conversion -Wl,-Bsymbolic")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-int-conversion -Wl,-Bsymbolic")
@@ -60,8 +60,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${THIRDPARTY_LIBRARY_DIR}/xz/${OHOS_ARCH}/include
                     ${THIRDPARTY_LIBRARY_DIR}/zstd_1_5_6/${OHOS_ARCH}/include)
 
-add_library(rohier SHARED rohier/rohier_napi.cpp
+add_library(rohier SHARED rohier/napi/rohier_napi.cpp
+                        rohier/napi/rohier_player_napi.cpp
+                        rohier/decoder/video/ohcodec_video_decoder.cpp
+                        rohier/demuxer/ohcodec_demuxer.cpp
+                        rohier/metadata/metadata_extractor.cpp
+                        rohier/metadata/metadata.cpp
                         rohier/native_window/rohier_window_manager.cpp
+                        rohier/player/rohier_player.cpp
                         rohier/utils/napi_utils.cpp
 )
 
@@ -84,6 +90,8 @@ target_link_libraries(rohier native_drm)
 target_link_libraries(rohier native_window)
 target_link_libraries(rohier native_buffer)
 target_link_libraries(rohier ohaudio)
+
+link_directories(${THIRDPARTY_LIBRARY_DIR}/ffmpeg/${OHOS_ARCH}/lib)
 
 target_link_libraries(rohier ${THIRDPARTY_LIBRARY_DIR}/avisynth/${OHOS_ARCH}/lib/libavisynth.so.11)
 target_link_libraries(rohier ${THIRDPARTY_LIBRARY_DIR}/brotli/${OHOS_ARCH}/lib/libbrotlicommon-static.a)

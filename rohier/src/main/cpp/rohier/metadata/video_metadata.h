@@ -11,6 +11,10 @@
 #include "rohier/metadata/track_metadata.h"
 #include <vector>
 
+extern "C" {
+#include "libavutil/rational.h"
+}
+
 struct VideoMetadata {
     int64_t duration;
     int bitrate;
@@ -26,5 +30,7 @@ struct VideoMetadata {
     
     std::vector<uint8_t> cover; // could be nullptr
 };
+
+int64_t time_base_to_ms(AVRational time_base, int64_t value);
 
 #endif // ROHIER_VIDEO_METADATA_H

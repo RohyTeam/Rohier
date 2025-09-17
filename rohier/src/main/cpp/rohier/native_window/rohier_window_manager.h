@@ -2,6 +2,7 @@
 #define ROHIER_WINDOW_MANAGER_H
 
 #include <map>
+#include <multimedia/player_framework/native_avcodec_base.h>
 #include <mutex>
 #include <string>
 #include "ace/xcomponent/native_interface_xcomponent.h"
@@ -10,7 +11,7 @@
 struct RohierNativeWindow {
   std::string id;
   OH_NativeXComponent *nativeXComponent{nullptr};
-  void *nativeWindow{nullptr};
+  OHNativeWindow *nativeWindow{nullptr};
 };
 
 class RohierWindowManager {

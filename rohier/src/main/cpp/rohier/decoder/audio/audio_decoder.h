@@ -7,4 +7,8 @@
 #ifndef ROHIER_AUDIO_DECODER_H
 #define ROHIER_AUDIO_DECODER_H
 
+class AudioDecoder {
+    
+};
+
 #endif //ROHIER_AUDIO_DECODER_H

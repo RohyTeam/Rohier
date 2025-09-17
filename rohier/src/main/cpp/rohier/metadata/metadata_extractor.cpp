@@ -23,10 +23,6 @@ extern "C" {
 #include <libavutil/imgutils.h>
 }
 
-int64_t time_base_to_ms(AVRational time_base, int64_t value) {
-    return value * 1000 * time_base.num / time_base.den;
-}
-
 int find_cover_track(AVFormatContext* fmt_ctx) {
     for (int i = 0; i < fmt_ctx->nb_streams; i++) {
         AVStream* stream = fmt_ctx->streams[i];
