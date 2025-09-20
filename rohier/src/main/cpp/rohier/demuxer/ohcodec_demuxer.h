@@ -18,7 +18,7 @@ public:
     OHCodecDemuxer();
     ~OHCodecDemuxer() override;
     RohierStatus prepare(AVFormatContext* context, OH_AVSource* source, VideoMetadata &metadata) override;
-    RohierStatus read_sample(int32_t trackId, OH_AVBuffer *buffer, OH_AVCodecBufferAttr &attr) override;
+    RohierStatus read_sample(int32_t trackId, CodecBuffer &buffer) override;
     RohierStatus release() override;
     
 private:

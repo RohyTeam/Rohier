@@ -15,7 +15,7 @@ public:
     RohierStatus stop() override;
     RohierStatus release() override;
     RohierStatus push_buffer(CodecBuffer &buffer) override;
-    RohierStatus free_buffer(uint32_t bufferIndex, bool render) override;
+    RohierStatus free_buffer(CodecBuffer &buffer, bool render) override;
     VideoCodecContext* get_context() override;
     
 private:

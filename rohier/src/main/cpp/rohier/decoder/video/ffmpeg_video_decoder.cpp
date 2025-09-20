@@ -62,7 +62,7 @@ RohierStatus FFmpegVideoDecoder::push_buffer(CodecBuffer &buffer) {
     return RohierStatus::RohierStatus_Success;
 }
 
-RohierStatus FFmpegVideoDecoder::free_buffer(uint32_t bufferIndex, bool render) {
+RohierStatus FFmpegVideoDecoder::free_buffer(CodecBuffer &buffer, bool render) {
     
     // TODO
     return RohierStatus::RohierStatus_Success;

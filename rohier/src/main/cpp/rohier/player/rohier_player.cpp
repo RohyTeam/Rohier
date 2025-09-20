@@ -509,7 +509,7 @@ void RohierPlayer::thread_video_decode_input() {
         this->video_context_->inputFrameCount++;
         lock.unlock();
         
-        this->demuxer_->read_sample(this->video_context_->current_track_index, reinterpret_cast<OH_AVBuffer*>(buffer.buffer), buffer.attr);
+        this->demuxer_->read_sample(this->video_context_->current_track_index, buffer);
         
         if (this->video_decoder_->push_buffer(buffer) != RohierStatus::RohierStatus_Success) 
             break;
@@ -539,7 +539,7 @@ void RohierPlayer::thread_video_decode_output() {
         
         lock.unlock();
         
-        if (this->video_decoder_->free_buffer(buffer.bufferIndex, true) != RohierStatus::RohierStatus_Success)
+        if (this->video_decoder_->free_buffer(buffer, true) != RohierStatus::RohierStatus_Success)
             break;
 
         std::this_thread::sleep_until(lastPushTime + std::chrono::microseconds(this->frameInterval));
@@ -563,7 +563,7 @@ void RohierPlayer::thread_audio_decode_input() {
         this->audio_context_->inputFrameCount++;
         lock.unlock();
 
-        demuxer_->read_sample(this->audio_context_->current_track_index, reinterpret_cast<OH_AVBuffer *>(buffer.buffer), buffer.attr);
+        demuxer_->read_sample(this->audio_context_->current_track_index, buffer);
 
         if (this->audio_decoder_->push_buffer(buffer) != RohierStatus::RohierStatus_Success) 
             break;
@@ -588,20 +588,11 @@ void RohierPlayer::thread_audio_decode_output() {
         if (buffer.attr.flags & AVCODEC_BUFFER_FLAGS_EOS)
             break;
         this->audio_context_->outputFrameCount++;
-        uint8_t* source = OH_AVBuffer_GetAddr(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
-        OH_AVFormat* format = OH_AVBuffer_GetParameter(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
-        uint8_t* metadata;
-        size_t metadata_size;
-        OH_AVFormat_GetBuffer(format, OH_MD_KEY_AUDIO_VIVID_METADATA, &metadata, &metadata_size); 
-        for (int i = 0; i < buffer.attr.size; i++) {
-            this->audio_context_->renderQueue.push(*(source + i));
-        } 
-        for (int i = 0; i < metadata_size; i++) {
-            this->audio_context_->renderMetadataQueue.push(*(metadata + i));
-        }
+        
+        this->audio_decoder_->render(buffer);
         lock.unlock();
 
-        if (this->audio_decoder_->free_buffer(buffer.bufferIndex) != RohierStatus::RohierStatus_Success)
+        if (this->audio_decoder_->free_buffer(buffer) != RohierStatus::RohierStatus_Success)
             break;
 
         std::unique_lock<std::mutex> lockRender(this->audio_context_->renderMutex);

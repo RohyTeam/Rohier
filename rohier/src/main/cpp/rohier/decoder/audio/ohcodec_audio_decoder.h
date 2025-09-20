@@ -17,7 +17,8 @@ public:
     RohierStatus stop() override;
     RohierStatus release() override;
     RohierStatus push_buffer(CodecBuffer &buffer) override;
-    RohierStatus free_buffer(uint32_t bufferIndex) override;
+    RohierStatus render(CodecBuffer &buffer) override;
+    RohierStatus free_buffer(CodecBuffer &buffer) override;
     
 private:
     OH_AVCodec* codec_;

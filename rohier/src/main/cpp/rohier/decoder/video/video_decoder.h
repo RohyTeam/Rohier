@@ -22,7 +22,7 @@ public:
     virtual RohierStatus stop() = 0;
     virtual RohierStatus release() = 0;
     virtual RohierStatus push_buffer(CodecBuffer &buffer) = 0;
-    virtual RohierStatus free_buffer(uint32_t bufferIndex, bool render) = 0;
+    virtual RohierStatus free_buffer(CodecBuffer &buffer, bool render) = 0;
     virtual VideoCodecContext* get_context() = 0;
 };
 

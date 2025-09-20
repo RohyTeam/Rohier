@@ -267,10 +267,25 @@ RohierStatus OHCodecAudioDecoder::push_buffer(CodecBuffer &buffer) {
     return RohierStatus::RohierStatus_Success;
 }
 
-RohierStatus OHCodecAudioDecoder::free_buffer(uint32_t bufferIndex) {
+RohierStatus OHCodecAudioDecoder::render(CodecBuffer &buffer) {
+    uint8_t* source = OH_AVBuffer_GetAddr(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
+    OH_AVFormat* format = OH_AVBuffer_GetParameter(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
+    uint8_t* metadata;
+    size_t metadata_size;
+    OH_AVFormat_GetBuffer(format, OH_MD_KEY_AUDIO_VIVID_METADATA, &metadata, &metadata_size); 
+    for (int i = 0; i < buffer.attr.size; i++) {
+        this->context_->renderQueue.push(*(source + i));
+    } 
+    for (int i = 0; i < metadata_size; i++) {
+        this->context_->renderMetadataQueue.push(*(metadata + i));
+    }
+    return RohierStatus::RohierStatus_Success;
+}
+
+RohierStatus OHCodecAudioDecoder::free_buffer(CodecBuffer &buffer) {
     if (!this->codec_)
         return RohierStatus::RohierStatus_DecoderNotFound;
-    OH_AVErrCode ret = OH_AudioCodec_FreeOutputBuffer(this->codec_, bufferIndex);
+    OH_AVErrCode ret = OH_AudioCodec_FreeOutputBuffer(this->codec_, buffer.bufferIndex);
     if (ret != OH_AVErrCode::AV_ERR_OK)
         return RohierStatus::RohierStatus_FailedToFreeBufferFromDecoder;
     return RohierStatus::RohierStatus_Success;

@@ -8,6 +8,7 @@
 #define ROHIER_DEMUXER_H
 
 #include "rohier/common/status.h"
+#include "rohier/decoder/buffer.h"
 #include "rohier/metadata/video_metadata.h"
 #include <multimedia/player_framework/native_avsource.h>
 
@@ -19,7 +20,7 @@ class Demuxer {
 public:
     virtual ~Demuxer() {};
     virtual RohierStatus prepare(AVFormatContext* context, OH_AVSource* source, VideoMetadata &metadata) = 0;
-    virtual RohierStatus read_sample(int32_t trackId, OH_AVBuffer *buffer, OH_AVCodecBufferAttr &attr) = 0;
+    virtual RohierStatus read_sample(int32_t trackId, CodecBuffer &buffer) = 0;
     virtual RohierStatus release() = 0;
 };
 

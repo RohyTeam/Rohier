@@ -50,13 +50,14 @@ RohierStatus OHCodecDemuxer::prepare(AVFormatContext* context, OH_AVSource* sour
     return RohierStatus::RohierStatus_Success;
 }
 
-RohierStatus OHCodecDemuxer::read_sample(int32_t trackId, OH_AVBuffer *buffer, OH_AVCodecBufferAttr &attr) {
+RohierStatus OHCodecDemuxer::read_sample(int32_t trackId, CodecBuffer &buffer) {
     ROHIER_INFO("OHCodecDemuxer", "Reading sample for track %{public}d", trackId);
     if (!this->demuxer_)
         return RohierStatus::RohierStatus_DemuxerNotFound;
-    if (OH_AVDemuxer_ReadSampleBuffer(demuxer_, trackId, buffer) != OH_AVErrCode::AV_ERR_OK)
+    OH_AVBuffer* oh_buffer = reinterpret_cast<OH_AVBuffer*>(buffer.buffer);
+    if (OH_AVDemuxer_ReadSampleBuffer(demuxer_, trackId, oh_buffer) != OH_AVErrCode::AV_ERR_OK)
         return RohierStatus::RohierStatus_FailedToReadSampleFromDemuxer;
-    if (OH_AVBuffer_GetBufferAttr(buffer, &attr) != OH_AVErrCode::AV_ERR_OK)
+    if (OH_AVBuffer_GetBufferAttr(oh_buffer, &buffer.attr) != OH_AVErrCode::AV_ERR_OK)
         return RohierStatus::RohierStatus_FailedToGetBufferAttrFromDemuxer;
     return RohierStatus::RohierStatus_Success;
 }
