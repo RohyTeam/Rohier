@@ -1,15 +1,19 @@
 #include "rohier/player/rohier_player.h"
+#include "rohier/decoder/audio/ohcodec_audio_decoder.h"
 #include "rohier/decoder/video/ffmpeg_video_decoder.h"
 #include "rohier/decoder/video/ohcodec_video_decoder.h"
 #include "rohier/demuxer/ohcodec_demuxer.h"
+#include "rohier/utils/rohier_logger.h"
 #include <unistd.h>
 
 using namespace std::chrono_literals;
 
 std::shared_ptr<VideoMetadata> fetch_metadata(AVFormatContext* fmt_ctx, OH_AVSource* oh_src) {
+    ROHIER_INFO("RohierPlayer", "Fetching metadata");
     std::shared_ptr<VideoMetadata> meta = std::make_shared<VideoMetadata>();
     try {
         if (avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
+            ROHIER_ERROR("RohierPlayer", "Cannot find stream info with FFmpeg");
             return nullptr;
         }
         
@@ -20,6 +24,7 @@ std::shared_ptr<VideoMetadata> fetch_metadata(AVFormatContext* fmt_ctx, OH_AVSou
         
         int video_stream_idx = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
         if (video_stream_idx < 0) {
+            ROHIER_ERROR("RohierPlayer", "Cannot find video track");
             return nullptr;
         }
         
@@ -34,7 +39,8 @@ std::shared_ptr<VideoMetadata> fetch_metadata(AVFormatContext* fmt_ctx, OH_AVSou
                 cm.end = time_base_to_ms(chapter->time_base, chapter->end);
                 
                 AVDictionaryEntry* tag = av_dict_get(chapter->metadata, "title", nullptr, 0);
-                if (tag) cm.title = tag->value;
+                if (tag) 
+                    cm.title = tag->value;
                 
                 meta->chapters.push_back(std::move(cm));
             }
@@ -91,8 +97,6 @@ std::shared_ptr<VideoMetadata> fetch_metadata(AVFormatContext* fmt_ctx, OH_AVSou
                     track.width = stream->codecpar->width;
                     track.height = stream->codecpar->height;
                     track.bitrate = stream->codecpar->bit_rate;
-                    track.pixel_format = (AVPixelFormat) stream->codecpar->format;
-                    track.averageFrameRate = av_q2d(stream->avg_frame_rate);
                 
                     {
                         int32_t isHDRVivid = 0;
@@ -140,10 +144,8 @@ std::shared_ptr<VideoMetadata> fetch_metadata(AVFormatContext* fmt_ctx, OH_AVSou
                 case AVMEDIA_TYPE_AUDIO:
                     track.track_type = TrackType::TrackType_Audio;
                     track.sample_rate = stream->codecpar->sample_rate;
-                    track.sample_format = (AVSampleFormat) stream->codecpar->format;
                     track.bitrate = stream->codecpar->bit_rate;
                     track.channels = stream->codecpar->ch_layout.nb_channels;
-                    track.channel_layout = ChannelLayout_FFmpeg2Rohier(&stream->codecpar->ch_layout);
                     break;
                     
                 case AVMEDIA_TYPE_SUBTITLE:
@@ -168,8 +170,10 @@ std::shared_ptr<VideoMetadata> fetch_metadata(AVFormatContext* fmt_ctx, OH_AVSou
             meta->tracks.push_back(std::move(track));
         }
     } catch (const std::exception& e) {
+        ROHIER_ERROR("RohierPlayer", "Error occurs when fetching metadata");
         return nullptr;
     } catch (...) {
+        ROHIER_ERROR("RohierPlayer", "Error occurs when fetching metadata");
         return nullptr;
     }
     
@@ -180,27 +184,25 @@ RohierPlayer::RohierPlayer() {
 }
 
 RohierPlayer::~RohierPlayer() {
+    this->release();
 }
 
 RohierStatus RohierPlayer::init(RohierNativeWindow* window) {
-    if (this->window_) {
-        return RohierStatus::RohierStatus_AlreadyInitialized;
-    }
+    ROHIER_INFO("RohierPlayer", "Initializing player");
     if (!window || !window->nativeWindow || !window->nativeXComponent) {
+        ROHIER_ERROR("RohierPlayer", "Window not found");
         return RohierStatus::RohierStatus_WindowNotFound;
     }
+    ROHIER_INFO("RohierPlayer", "Window is valid");
     this->window_ = window;
-    
+    ROHIER_INFO("RohierPlayer", "Window stored");
     return RohierStatus::RohierStatus_Success;
 }
 
 RohierStatus RohierPlayer::prepare(VideoSource* source) {
-    // 如果没有设置窗口则表明没有初始化
-    if (!this->window_) {
-        return RohierStatus::RohierStatus_NotInitialized;
-    }
+    ROHIER_INFO("RohierPlayer", "Preparing player");
     // 释放之前准备好的内容
-    this->release();
+    // this->release();
     
     // 初始化 FFmpeg 访问网络
     avformat_network_init();
@@ -231,17 +233,20 @@ RohierStatus RohierPlayer::prepare(VideoSource* source) {
             oh_src = OH_AVSource_CreateWithFD(fd, 0, fileSize);
         } else {
             close(fd);
+            ROHIER_ERROR("RohierPlayer", "Cannot open source file with fs");
             return RohierStatus::RohierStatus_SourceNotAccessible;
         }
     }
     
     // 如果系统的媒体解析无法打开源文件则不继续
     if (!oh_src) {
+        ROHIER_ERROR("RohierPlayer", "Cannot access source file with OHCodec");
         return RohierStatus::RohierStatus_SourceNotAccessible;
     }
         
     // 如果 FFmpeg 的媒体解析无法打开源文件则不继续
     if (avformat_open_input(&fmt_ctx, source->path.c_str(), nullptr, &options) < 0) {
+        ROHIER_ERROR("RohierPlayer", "Cannot access source file with FFmpeg");
         if (options) {
             av_dict_free(&options);
         }
@@ -264,6 +269,7 @@ RohierStatus RohierPlayer::prepare(VideoSource* source) {
     std::shared_ptr<VideoMetadata> video_metadata = fetch_metadata(fmt_ctx, oh_src);
     
     if (!video_metadata) {
+        ROHIER_ERROR("RohierPlayer", "Fetched metadata is null");
         avformat_free_context(fmt_ctx);
         OH_AVSource_Destroy(oh_src);
         return RohierStatus::RohierStatus_SourceNotAccessible;
@@ -271,31 +277,101 @@ RohierStatus RohierPlayer::prepare(VideoSource* source) {
     
     this->video_metadata_ = video_metadata;
     
-    this->video_context_ = new CodecContext;
+    this->video_context_ = new VideoCodecContext;
     this->video_context_->metadata = video_metadata.get();
+    this->video_context_->oh_src = oh_src;
+    this->video_context_->av_fmt = fmt_ctx;
     
-    auto videoCodec = this->video_metadata_->codec;
+    this->audio_context_ = new AudioCodecContext;
+    this->audio_context_->metadata = video_metadata.get();
+    this->audio_context_->oh_src = oh_src;
+    this->audio_context_->av_fmt = fmt_ctx;
     
     this->demuxer_ = std::make_shared<OHCodecDemuxer>();
+    if (this->demuxer_->prepare(this->av_format_context_ptr.get(), this->oh_avsource_context_ptr.get(), *video_metadata) != RohierStatus::RohierStatus_Success) {
+        ROHIER_INFO("RohierPlayer", "Failed to prepare demuxer");
+        return RohierStatus::RohierStatus_FailedToPrepareDemuxer;
+    }
+    ROHIER_INFO("RohierPlayer", "Demuxer prepared");
+    auto best_video_track = video_metadata->find_best_video_track();
+    auto best_audio_track = video_metadata->find_best_audio_track();
+    if (best_video_track) {
+        ROHIER_INFO("RohierPlayer", "Best video track is %{public}d", best_video_track->index);
+        this->video_context_->current_track_index = best_video_track->index;
+    } else {
+        ROHIER_ERROR("RohierPlayer", "Cannot find best video track");
+    }
+    if (best_audio_track) {
+        ROHIER_INFO("RohierPlayer", "Best audio track is %{public}d", best_audio_track->index);
+        this->audio_context_->current_track_index = best_audio_track->index;
+    } else {
+        ROHIER_ERROR("RohierPlayer", "Cannot find best audio track");
+    }
     
-    if (videoCodec == "h264" || videoCodec == "avc") {
+    auto video_codec = this->video_metadata_->tracks[this->video_context_->current_track_index].codec;
+    auto audio_codec = this->video_metadata_->tracks[this->audio_context_->current_track_index].codec;
+    
+    ROHIER_INFO("RohierPlayer", "Choosing video decoder");
+    if (video_codec == "h264" || video_codec == "avc") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is H.264, using OHCodec");
         OH_AVCapability *capability= OH_AVCodec_GetCapabilityByCategory(OH_AVCODEC_MIMETYPE_VIDEO_AVC, false, HARDWARE);
         // TODO: 设置摧毁器
         this->video_decoder_ = std::make_shared<OHCodecVideoDecoder>(capability);
-    } else if (videoCodec == "h265" || videoCodec == "hevc") {
+    } else if (video_codec == "h265" || video_codec == "hevc") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is H.265, using OHCodec");
         OH_AVCapability *capability= OH_AVCodec_GetCapabilityByCategory(OH_AVCODEC_MIMETYPE_VIDEO_HEVC, false, HARDWARE);
         this->video_decoder_ = std::make_shared<OHCodecVideoDecoder>(capability);
-    } else if (videoCodec == "h266" || videoCodec == "vvc") {
+    } else if (video_codec == "h266" || video_codec == "vvc") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is H.266, using OHCodec");
         OH_AVCapability *capability= OH_AVCodec_GetCapabilityByCategory(OH_AVCODEC_MIMETYPE_VIDEO_VVC, false, HARDWARE);
         this->video_decoder_ = std::make_shared<OHCodecVideoDecoder>(capability);
     } else {
+        ROHIER_INFO("RohierPlayer", "Detected codec is not supported by OHCodec, using FFmpeg");
         // this->video_decoder_ = std::make_shared<FFmpegVideoDecoder>();
     }
+    
+    ROHIER_INFO("RohierPlayer", "Choosing video decoder");
+    if (audio_codec == "av3a") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is AV3A, using OHCodec");
+        OH_AVCapability *capability= OH_AVCodec_GetCapability(OH_AVCODEC_MIMETYPE_AUDIO_VIVID, false);
+        this->audio_decoder_ = std::make_shared<OHCodecAudioDecoder>(capability);
+    } else if (audio_codec == "aac") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is AAC, using OHCodec");
+        OH_AVCapability *capability= OH_AVCodec_GetCapability(OH_AVCODEC_MIMETYPE_AUDIO_AAC, false);
+        this->audio_decoder_ = std::make_shared<OHCodecAudioDecoder>(capability);
+    } else if (audio_codec == "flac") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is FLAC, using OHCodec");
+        OH_AVCapability *capability= OH_AVCodec_GetCapability(OH_AVCODEC_MIMETYPE_AUDIO_FLAC, false);
+        this->audio_decoder_ = std::make_shared<OHCodecAudioDecoder>(capability);
+    } else if (audio_codec == "mpeg" || audio_codec == "mp3") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is MPEG, using OHCodec");
+        OH_AVCapability *capability= OH_AVCodec_GetCapability(OH_AVCODEC_MIMETYPE_AUDIO_MPEG, false);
+        this->audio_decoder_ = std::make_shared<OHCodecAudioDecoder>(capability);
+    } else if (audio_codec == "vorbis") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is Vorbis, using OHCodec");
+        OH_AVCapability *capability= OH_AVCodec_GetCapability(OH_AVCODEC_MIMETYPE_AUDIO_VORBIS, false);
+        this->audio_decoder_ = std::make_shared<OHCodecAudioDecoder>(capability);
+    } else if (audio_codec == "opus") {
+        ROHIER_INFO("RohierPlayer", "Detected codec is OPUS, using OHCodec");
+        OH_AVCapability *capability= OH_AVCodec_GetCapability(OH_AVCODEC_MIMETYPE_AUDIO_OPUS, false);
+        this->audio_decoder_ = std::make_shared<OHCodecAudioDecoder>(capability);
+    }
+    
+    if (this->video_decoder_->prepare(this->window_, this->video_context_) != RohierStatus::RohierStatus_Success) {
+        ROHIER_INFO("RohierPlayer", "Failed to prepare video decoder");
+        return RohierStatus::RohierStatus_FailedToPrepareDecoder;
+    }
+    if (this->audio_decoder_->prepare(this->audio_context_) != RohierStatus::RohierStatus_Success) {
+        ROHIER_INFO("RohierPlayer", "Failed to prepare audio decoder");
+        return RohierStatus::RohierStatus_FailedToPrepareDecoder;
+    }
+    ROHIER_INFO("RohierPlayer", "Decoder prepared");
     
     return RohierStatus::RohierStatus_Success;
 }
 
 RohierStatus RohierPlayer::release() {
+    ROHIER_INFO("RohierPlayer", "Releasing player");
     this->window_ = nullptr;
     // 释放线程
     if (this->video_decode_input_thread_ && this->video_decode_input_thread_->joinable()) {
@@ -306,13 +382,13 @@ RohierStatus RohierPlayer::release() {
         this->video_decode_output_thread_->detach();
         this->video_decode_output_thread_.reset();
     }
-    if (this->audio_decoder_input_thread_ && this->audio_decoder_input_thread_->joinable()) {
-        this->audio_decoder_input_thread_->detach();
-        this->audio_decoder_input_thread_.reset();
+    if (this->audio_decode_input_thread_ && this->audio_decode_input_thread_->joinable()) {
+        this->audio_decode_input_thread_->detach();
+        this->audio_decode_input_thread_.reset();
     }
-    if (this->audio_decoder_output_thread_ && this->audio_decoder_output_thread_->joinable()) {
-        this->audio_decoder_output_thread_->detach();
-        this->audio_decoder_output_thread_.reset();
+    if (this->audio_decode_output_thread_ && this->audio_decode_output_thread_->joinable()) {
+        this->audio_decode_output_thread_->detach();
+        this->audio_decode_output_thread_.reset();
     }
     if (this->video_context_) {
         delete this->video_context_;
@@ -356,18 +432,32 @@ RohierStatus RohierPlayer::release() {
 }
 
 RohierStatus RohierPlayer::start() {
+    ROHIER_INFO("RohierPlayer", "Starting player");
     std::unique_lock<std::mutex> lock(this->mutex_);
     if (this->started) {
-        lock.unlock();
-        this->release();
+        ROHIER_ERROR("RohierPlayer", "Player already started");
         return RohierStatus::RohierStatus_AlreadyStarted;
     }
     if (!this->video_decoder_) {
+        ROHIER_ERROR("RohierPlayer", "Video decoder not found");
         lock.unlock();
         this->release();
         return RohierStatus::RohierStatus_DecoderNotFound;
     }
     if (this->video_decoder_->start() != RohierStatus::RohierStatus_Success) {
+        ROHIER_ERROR("RohierPlayer", "Failed to start video decoder");
+        lock.unlock();
+        this->release();
+        return RohierStatus::RohierStatus_FailedToStartDecoder;
+    }
+    if (!this->audio_decoder_) {
+        ROHIER_ERROR("RohierPlayer", "Audio decoder not found");
+        lock.unlock();
+        this->release();
+        return RohierStatus::RohierStatus_DecoderNotFound;
+    }
+    if (this->audio_decoder_->start() != RohierStatus::RohierStatus_Success) {
+        ROHIER_ERROR("RohierPlayer", "Failed to start audio decoder");
         lock.unlock();
         this->release();
         return RohierStatus::RohierStatus_FailedToStartDecoder;
@@ -375,12 +465,15 @@ RohierStatus RohierPlayer::start() {
     this->started = true;
     this->video_decode_input_thread_ = std::make_unique<std::thread>(&RohierPlayer::thread_video_decode_input, this);
     this->video_decode_output_thread_ = std::make_unique<std::thread>(&RohierPlayer::thread_video_decode_output, this);
-    if (this->video_decode_input_thread_ == nullptr || this->video_decode_output_thread_ == nullptr) {
+    this->audio_decode_input_thread_ = std::make_unique<std::thread>(&RohierPlayer::thread_audio_decode_input, this);
+    this->audio_decode_output_thread_ = std::make_unique<std::thread>(&RohierPlayer::thread_audio_decode_output, this);
+    if (this->video_decode_input_thread_ == nullptr || this->video_decode_output_thread_ == nullptr 
+        || this->audio_decode_input_thread_ == nullptr || this->audio_decode_output_thread_ == nullptr) {
+        ROHIER_ERROR("RohierPlayer", "Failed to start decoder thread");
         lock.unlock();
         this->release();
         return RohierStatus::RohierStatus_FailedToCreateThread;
     }
-    // TODO: audio decode
     return RohierStatus::RohierStatus_Success;
 }
 
@@ -402,8 +495,9 @@ OH_AVSource* RohierPlayer::get_ohcodec_avsource() {
 
 void RohierPlayer::thread_video_decode_input() {
     while (true) {
+        if (!this->started)
+            break;
         std::unique_lock<std::mutex> lock(this->video_context_->inputMutex);
-        
         this->video_context_->inputCond.wait_for(lock, 5s, [this]() { return !this->started || !this->video_context_->inputBufferInfoQueue.empty(); });
         if (!this->started)
             break;
@@ -415,7 +509,7 @@ void RohierPlayer::thread_video_decode_input() {
         this->video_context_->inputFrameCount++;
         lock.unlock();
         
-        this->demuxer_->read_sample(this->demuxer_->get_video_track_id(), reinterpret_cast<OH_AVBuffer*>(buffer.buffer), buffer.attr);
+        this->demuxer_->read_sample(this->video_context_->current_track_index, reinterpret_cast<OH_AVBuffer*>(buffer.buffer), buffer.attr);
         
         if (this->video_decoder_->push_buffer(buffer) != RohierStatus::RohierStatus_Success) 
             break;
@@ -426,7 +520,7 @@ void RohierPlayer::thread_video_decode_input() {
 }
 
 void RohierPlayer::thread_video_decode_output() {
-    this->frameInterval = MICROSECOND / this->video_metadata_->averageFrameRate;
+    this->frameInterval = MICROSECOND / this->video_context_->framerate;
     while (true) {
         thread_local auto lastPushTime = std::chrono::system_clock::now();
         if (!this->started)
@@ -454,10 +548,70 @@ void RohierPlayer::thread_video_decode_output() {
 }
 
 void RohierPlayer::thread_audio_decode_input() {
-    
+    while (true) {
+        if (!this->started)
+            break;
+        std::unique_lock<std::mutex> lock(this->audio_context_->inputMutex);
+        this->audio_context_->inputCond.wait_for(lock, 5s, [this]() { return !this->started || !this->audio_context_->inputBufferInfoQueue.empty(); });
+        if (!this->started)
+            break;
+        if (this->audio_context_->inputBufferInfoQueue.empty())
+            continue;
+
+        CodecBuffer buffer = this->audio_context_->inputBufferInfoQueue.front();
+        this->audio_context_->inputBufferInfoQueue.pop();
+        this->audio_context_->inputFrameCount++;
+        lock.unlock();
+
+        demuxer_->read_sample(this->audio_context_->current_track_index, reinterpret_cast<OH_AVBuffer *>(buffer.buffer), buffer.attr);
+
+        if (this->audio_decoder_->push_buffer(buffer) != RohierStatus::RohierStatus_Success) 
+            break;
+        if (buffer.attr.flags & AVCODEC_BUFFER_FLAGS_EOS)
+            break;
+    }
 }
 
 void RohierPlayer::thread_audio_decode_output() {
-    
+    while (true) {
+        if (!this->started)
+            break;
+        std::unique_lock<std::mutex> lock(this->audio_context_->outputMutex);
+        this->audio_context_->outputCond.wait_for(lock, 5s, [this]() { return !this->started || !this->audio_context_->outputBufferInfoQueue.empty(); });
+        if (!this->started)
+            break;
+        if (this->audio_context_->outputBufferInfoQueue.empty())
+            continue;
+
+        CodecBuffer buffer = this->audio_context_->outputBufferInfoQueue.front();
+        this->audio_context_->outputBufferInfoQueue.pop();
+        if (buffer.attr.flags & AVCODEC_BUFFER_FLAGS_EOS)
+            break;
+        this->audio_context_->outputFrameCount++;
+        uint8_t* source = OH_AVBuffer_GetAddr(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
+        OH_AVFormat* format = OH_AVBuffer_GetParameter(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
+        uint8_t* metadata;
+        size_t metadata_size;
+        OH_AVFormat_GetBuffer(format, OH_MD_KEY_AUDIO_VIVID_METADATA, &metadata, &metadata_size); 
+        for (int i = 0; i < buffer.attr.size; i++) {
+            this->audio_context_->renderQueue.push(*(source + i));
+        } 
+        for (int i = 0; i < metadata_size; i++) {
+            this->audio_context_->renderMetadataQueue.push(*(metadata + i));
+        }
+        lock.unlock();
+
+        if (this->audio_decoder_->free_buffer(buffer.bufferIndex) != RohierStatus::RohierStatus_Success)
+            break;
+
+        std::unique_lock<std::mutex> lockRender(this->audio_context_->renderMutex);
+        this->audio_context_->renderCond.wait_for(lockRender, 20ms, [this, buffer]() {
+            return this->audio_context_->renderQueue.size() < BALANCE_VALUE * buffer.attr.size;
+        });
+    }
+    std::unique_lock<std::mutex> lockRender(this->audio_context_->renderMutex);
+    this->audio_context_->renderCond.wait_for(lockRender, 500ms, [this](){
+        return this->audio_context_->renderQueue.size() < 1;
+    });
 }
 

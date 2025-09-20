@@ -1,1 +1,1 @@
-export { MainPage } from './src/main/ets/components/MainPage';
+export { RohierPlayer } from './src/main/ets/player/RohierPlayer';

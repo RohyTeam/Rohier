@@ -304,8 +304,6 @@ std::shared_ptr<VideoMetadata> MetadataExtractor::extractMetadata(VideoSource* s
                     track.width = stream->codecpar->width;
                     track.height = stream->codecpar->height;
                     track.bitrate = stream->codecpar->bit_rate;
-                    track.pixel_format = (AVPixelFormat) stream->codecpar->format;
-                    track.averageFrameRate = av_q2d(stream->avg_frame_rate);
                 
                     {
                         int32_t isHDRVivid = 0;
@@ -355,10 +353,8 @@ std::shared_ptr<VideoMetadata> MetadataExtractor::extractMetadata(VideoSource* s
                 case AVMEDIA_TYPE_AUDIO:
                     track.track_type = TrackType::TrackType_Audio;
                     track.sample_rate = stream->codecpar->sample_rate;
-                    track.sample_format = (AVSampleFormat) stream->codecpar->format;
                     track.bitrate = stream->codecpar->bit_rate;
                     track.channels = stream->codecpar->ch_layout.nb_channels;
-                    track.channel_layout = ChannelLayout_FFmpeg2Rohier(&stream->codecpar->ch_layout);
                     break;
                     
                 case AVMEDIA_TYPE_SUBTITLE:

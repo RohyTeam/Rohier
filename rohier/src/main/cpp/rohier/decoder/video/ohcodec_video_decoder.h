@@ -10,17 +10,17 @@ public:
     OHCodecVideoDecoder(OH_AVCapability* capability);
     ~OHCodecVideoDecoder() override;
     
-    RohierStatus prepare(RohierNativeWindow* window, CodecContext* context) override;
+    RohierStatus prepare(RohierNativeWindow* window, VideoCodecContext* context) override;
     RohierStatus start() override;
     RohierStatus stop() override;
     RohierStatus release() override;
     RohierStatus push_buffer(CodecBuffer &buffer) override;
     RohierStatus free_buffer(uint32_t bufferIndex, bool render) override;
-    virtual CodecContext* get_context() override;
+    VideoCodecContext* get_context() override;
     
 private:
     OH_AVCodec* codec_;
-    CodecContext* context_;
+    VideoCodecContext* context_;
     
 };
 

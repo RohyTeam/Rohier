@@ -32,6 +32,9 @@ enum RohierStatus {
     RohierStatus_DemuxerNotFound = 19,
     RohierStatus_FailedToReadSampleFromDemuxer = 20,
     RohierStatus_FailedToGetBufferAttrFromDemuxer = 21,
+    RohierStatus_FailedToSetDecoderCallbacks = 22,
+    RohierStatus_FailedToSetNativeWindowScalingMode = 23,
+    RohierStatus_FailedToPrepareDemuxer = 24,
     RohierStatus_SourceNotAccessible = 10001,
     RohierStatus_PlayerNotPrepared = 10002,
 };

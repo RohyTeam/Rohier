@@ -1,11 +1,16 @@
 {
   "apiType": "stageMode",
   "buildOption": {
+    "nativeLib": {
+      "filter": {
+        "enableOverride": true
+      }
+    },
     "externalNativeOptions": {
       "path": "./src/main/cpp/CMakeLists.txt",
-      "arguments": "",
+      "arguments": "-DOHOS_STL=c++_shared -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS='-s' -DCMAKE_CXX_FLAGS='-s'",
       "cppFlags": ""
-    },
+    }
   },
   "buildOptionSet": [
     {

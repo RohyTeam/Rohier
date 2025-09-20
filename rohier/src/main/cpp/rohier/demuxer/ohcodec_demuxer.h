@@ -17,17 +17,13 @@ class OHCodecDemuxer : public Demuxer {
 public:
     OHCodecDemuxer();
     ~OHCodecDemuxer() override;
-    RohierStatus create(AVFormatContext* context, OH_AVSource* source, VideoMetadata &metadata) override;
+    RohierStatus prepare(AVFormatContext* context, OH_AVSource* source, VideoMetadata &metadata) override;
     RohierStatus read_sample(int32_t trackId, OH_AVBuffer *buffer, OH_AVCodecBufferAttr &attr) override;
     RohierStatus release() override;
-    int32_t get_video_track_id() override;
-    int32_t get_audio_track_id() override;
     
 private:
     OH_AVSource *source_;
     OH_AVDemuxer *demuxer_;
-    int32_t video_track_id_;
-    int32_t audio_track_id_;
 };
 
 #endif //ROHIER_OHCODEC_DEMUXER_H

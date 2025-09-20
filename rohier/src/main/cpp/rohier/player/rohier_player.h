@@ -23,6 +23,7 @@
 #include <multimedia/player_framework/native_avformat.h>
 #include <multimedia/player_framework/native_avbuffer.h>
 #include <fcntl.h>
+#include <ohaudio/native_audiostream_base.h>
 #include <sys/stat.h>
 #include <thread>
 
@@ -64,15 +65,15 @@ private:
     std::shared_ptr<VideoDecoder> video_decoder_;
     std::shared_ptr<AudioDecoder> audio_decoder_;
     
-    CodecContext* video_context_;
-    CodecContext* audio_context_;
+    VideoCodecContext* video_context_;
+    AudioCodecContext* audio_context_;
     
     std::mutex mutex_;
     
     std::unique_ptr<std::thread> video_decode_input_thread_ = nullptr;
     std::unique_ptr<std::thread> video_decode_output_thread_ = nullptr;
-    std::unique_ptr<std::thread> audio_decoder_input_thread_ = nullptr;
-    std::unique_ptr<std::thread> audio_decoder_output_thread_ = nullptr;
+    std::unique_ptr<std::thread> audio_decode_input_thread_ = nullptr;
+    std::unique_ptr<std::thread> audio_decode_output_thread_ = nullptr;
     
     void thread_video_decode_input();
     void thread_video_decode_output();
@@ -80,6 +81,7 @@ private:
     void thread_audio_decode_output();
     
     static constexpr int64_t MICROSECOND = 1000000;
+    static constexpr int BALANCE_VALUE = 2;
 };
 
 #endif //ROHIER_ROHIER_DECODER_H

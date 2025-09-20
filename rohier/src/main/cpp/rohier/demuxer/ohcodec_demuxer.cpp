@@ -5,6 +5,9 @@
 // please include "napi/native_api.h".
 
 #include "ohcodec_demuxer.h"
+#include "rohier/utils/rohier_logger.h"
+#include "rohier/utils/safe_utils.h"
+#include <cstdint>
 #include <multimedia/player_framework/native_averrors.h>
 
 OHCodecDemuxer::OHCodecDemuxer() { 
@@ -14,23 +17,41 @@ OHCodecDemuxer::~OHCodecDemuxer() {
     this->release(); 
 }
 
-RohierStatus OHCodecDemuxer::create(AVFormatContext* context, OH_AVSource* source, VideoMetadata &metadata) {
-    if (!source)
+RohierStatus OHCodecDemuxer::prepare(AVFormatContext* context, OH_AVSource* source, VideoMetadata &metadata) {
+    ROHIER_INFO("OHCodecDemuxer", "Preparing OHCodec demuxer");
+    if (!source) {
+        ROHIER_ERROR("OHCodecDemuxer", "OH_AVSource not found");
         return RohierStatus::RohierStatus_SourceNotAccessible;
+    }
     this->demuxer_ = OH_AVDemuxer_CreateWithSource(source);
-    if (!this->demuxer_)
+    if (!this->demuxer_) {
+        ROHIER_ERROR("OHCodecDemuxer", "Failed to create OHCodec demuxer");
         return RohierStatus::RohierStatus_FailedToCreateDemuxer;
+    }
     this->source_ = source;
 
     auto sourceFormat = std::shared_ptr<OH_AVFormat>(OH_AVSource_GetSourceFormat(source_), OH_AVFormat_Destroy);
-    
-    if (!sourceFormat)
+
+    if (!sourceFormat) {
+        ROHIER_ERROR("OHCodecDemuxer", "Failed to get OHCodec source format");
         return RohierStatus::RohierStatus_FailedToGetSourceFormat;
+    }
+    for (auto track : metadata.tracks) {
+        uint32_t track_index = safe_convert_int32_to_uint32(track.index);
+        if (track.track_type == TrackType::TrackType_Video) {
+            ROHIER_INFO("OHCodecDemuxer", "Selected track %{public}ud", track_index);
+            OH_AVDemuxer_SelectTrackByID(this->demuxer_, track_index);
+        } else if (track.track_type == TrackType::TrackType_Audio) {
+            ROHIER_INFO("OHCodecDemuxer", "Selected track %{public}ud", track_index);
+            OH_AVDemuxer_SelectTrackByID(this->demuxer_, track_index);
+        }
+    }
 
     return RohierStatus::RohierStatus_Success;
 }
 
 RohierStatus OHCodecDemuxer::read_sample(int32_t trackId, OH_AVBuffer *buffer, OH_AVCodecBufferAttr &attr) {
+    ROHIER_INFO("OHCodecDemuxer", "Reading sample for track %{public}d", trackId);
     if (!this->demuxer_)
         return RohierStatus::RohierStatus_DemuxerNotFound;
     if (OH_AVDemuxer_ReadSampleBuffer(demuxer_, trackId, buffer) != OH_AVErrCode::AV_ERR_OK)
@@ -47,6 +68,3 @@ RohierStatus OHCodecDemuxer::release() {
     }
     return RohierStatus::RohierStatus_Success;
 }
-
-int32_t OHCodecDemuxer::get_video_track_id() { return this->video_track_id_; }
-int32_t OHCodecDemuxer::get_audio_track_id() { return this->audio_track_id_; }

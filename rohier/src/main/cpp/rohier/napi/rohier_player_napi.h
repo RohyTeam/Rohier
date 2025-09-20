@@ -12,11 +12,13 @@
 
 class RohierPlayerNapi {
 public:
+    explicit RohierPlayerNapi();
     static napi_value init_napi(napi_env env, napi_value exports);
     static void finalize(napi_env env, void* native_object, void* finalize_hint);
 private:
-    explicit RohierPlayerNapi();
     ~RohierPlayerNapi();
+    
+    static std::map<std::string, std::shared_ptr<RohierPlayer>> players_;
     
     static napi_value func_new(napi_env env, napi_callback_info info);
     static napi_value func_init(napi_env env, napi_callback_info info);
