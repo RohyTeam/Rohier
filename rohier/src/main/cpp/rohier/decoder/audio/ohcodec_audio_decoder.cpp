@@ -140,13 +140,6 @@ RohierStatus OHCodecAudioDecoder::prepare(AudioCodecContext* context) {
         OH_AVFormat_GetBuffer(track_info, OH_MD_KEY_CODEC_CONFIG, &addr, &addr_size);
     }
     OH_AVFormat_Destroy(track_info);
-    ROHIER_INFO("OHCodecAudioDecoder", 
-        "sample format %{public}d\n"
-        "channel count %{public}d\n"
-        "sample rate %{public}d\n"
-        "channel layout %{public}ld\n",
-        sample_format, channel_count, sample_rate, channel_layout
-    );
     
     // 创建 OH_AVFormat 设置解码器参数
     ROHIER_INFO("OHCodecAudioDecoder", "Creating configure parameters");
@@ -268,16 +261,23 @@ RohierStatus OHCodecAudioDecoder::push_buffer(CodecBuffer &buffer) {
 }
 
 RohierStatus OHCodecAudioDecoder::render(CodecBuffer &buffer) {
-    uint8_t* source = OH_AVBuffer_GetAddr(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
-    OH_AVFormat* format = OH_AVBuffer_GetParameter(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
-    uint8_t* metadata;
-    size_t metadata_size;
-    OH_AVFormat_GetBuffer(format, OH_MD_KEY_AUDIO_VIVID_METADATA, &metadata, &metadata_size); 
-    for (int i = 0; i < buffer.attr.size; i++) {
-        this->context_->renderQueue.push(*(source + i));
-    } 
-    for (int i = 0; i < metadata_size; i++) {
-        this->context_->renderMetadataQueue.push(*(metadata + i));
+    if (this->context_->metadata->tracks[this->context_->current_track_index].codec == "av3a") {
+        uint8_t* source = OH_AVBuffer_GetAddr(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
+        OH_AVFormat* format = OH_AVBuffer_GetParameter(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
+        uint8_t* metadata;
+        size_t metadata_size;
+        OH_AVFormat_GetBuffer(format, OH_MD_KEY_AUDIO_VIVID_METADATA, &metadata, &metadata_size); 
+        for (int i = 0; i < buffer.attr.size; i++) {
+            this->context_->renderQueue.push(*(source + i));
+        } 
+        for (int i = 0; i < metadata_size; i++) {
+            this->context_->renderMetadataQueue.push(*(metadata + i));
+        }
+    } else {
+        uint8_t *source = OH_AVBuffer_GetAddr(reinterpret_cast<OH_AVBuffer *>(buffer.buffer));
+        for (int i = 0; i < buffer.attr.size; i++) {
+            this->context_->renderQueue.push(*(source + i));
+        }
     }
     return RohierStatus::RohierStatus_Success;
 }

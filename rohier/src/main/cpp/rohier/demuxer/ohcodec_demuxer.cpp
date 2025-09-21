@@ -51,7 +51,6 @@ RohierStatus OHCodecDemuxer::prepare(AVFormatContext* context, OH_AVSource* sour
 }
 
 RohierStatus OHCodecDemuxer::read_sample(int32_t trackId, CodecBuffer &buffer) {
-    ROHIER_INFO("OHCodecDemuxer", "Reading sample for track %{public}d", trackId);
     if (!this->demuxer_)
         return RohierStatus::RohierStatus_DemuxerNotFound;
     OH_AVBuffer* oh_buffer = reinterpret_cast<OH_AVBuffer*>(buffer.buffer);

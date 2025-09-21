@@ -16,3 +16,4 @@ You can access [DeeChael/FFmpeg-OHOS-buildscripts](https://github.com/DeeChael/F
 - AAC, FLAC, MPEG (MP3), OPUS supports.
 - Local & Network files supports.
 - Speed playing: x0.25, x0.5, x0.75, x1.0, x1.25, x1.5, x1.75, x2.0, and any integer larger than 2 like x3.0, x4.0, x5.0 until x100.0.
+- Dynamic framerate supports.
