@@ -26,6 +26,7 @@
 #include <ohaudio/native_audiostream_base.h>
 #include <sys/stat.h>
 #include <thread>
+#include <unistd.h>
 
 extern "C" {
 #include <libavformat/avformat.h>

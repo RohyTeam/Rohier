@@ -5,7 +5,6 @@
 #include "rohier/demuxer/ohcodec_demuxer.h"
 #include "rohier/utils/rohier_logger.h"
 #include <cstdint>
-#include <unistd.h>
 
 using namespace std::chrono_literals;
 
@@ -524,10 +523,10 @@ void RohierPlayer::thread_video_decode_output() {
     // 解码输出循环
     while (true) {
         // 在给渲染送帧前缓存一个时间用来计算下一帧的时间，否则会出现音画不同步、视频画面延迟的问题
-        thread_local auto last_push_time = std::chrono::system_clock::now();
+        thread_local std::chrono::time_point<std::chrono::system_clock> last_push_time = std::chrono::system_clock::now();
         // 定义 last_frame_pts 而不是 start_frame 可以防止 seek 后出问题
         // 同时可以解决动态帧率视频的播放
-        thread_local auto last_frame_pts = 0;
+        thread_local int64_t last_frame_pts = 0;
         
         // 没有开始就结束循环
         if (!this->started)
@@ -556,10 +555,7 @@ void RohierPlayer::thread_video_decode_output() {
         // 解锁
         lock.unlock();
         
-        // 释放帧的同时送显
-        if (this->video_decoder_->free_buffer(buffer, true) != RohierStatus::RohierStatus_Success)
-            break;
-        
+        // 先等待后渲染，这样后续跳转的问题就解决了
         int64_t pts;
         if (buffer.buffer_type == CodecBufferType::OHCodec) {
             pts = buffer.attr.pts;
@@ -571,9 +567,14 @@ void RohierPlayer::thread_video_decode_output() {
         last_frame_pts = pts;
 
         std::this_thread::sleep_until(last_push_time + std::chrono::microseconds(pts_delta));
+        
         // 更新送显时间
         // 这里用上一次送显时间直接加 pts delta 可以解决解码超时导致的画面延迟问题
         last_push_time = last_push_time + std::chrono::microseconds(pts_delta);
+        
+        // 释放帧的同时送显
+        if (this->video_decoder_->free_buffer(buffer, true) != RohierStatus::RohierStatus_Success)
+            break;
     }
 }
 
@@ -593,7 +594,7 @@ void RohierPlayer::thread_audio_decode_input() {
         this->audio_context_->inputFrameCount++;
         lock.unlock();
 
-        demuxer_->read_sample(this->audio_context_->current_track_index, buffer);
+        this->demuxer_->read_sample(this->audio_context_->current_track_index, buffer);
 
         if (this->audio_decoder_->push_buffer(buffer) != RohierStatus::RohierStatus_Success) 
             break;

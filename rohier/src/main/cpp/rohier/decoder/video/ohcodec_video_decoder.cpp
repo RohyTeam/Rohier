@@ -161,7 +161,7 @@ RohierStatus OHCodecVideoDecoder::stop() {
 RohierStatus OHCodecVideoDecoder::push_buffer(CodecBuffer &buffer) {
     if (!this->codec_)
         return RohierStatus::RohierStatus_DecoderNotFound;
-    if (OH_VideoDecoder_PushInputBuffer(this->codec_, buffer.bufferIndex) != OH_AVErrCode::AV_ERR_OK)
+    if (OH_VideoDecoder_PushInputBuffer(this->codec_, buffer.buffer_index) != OH_AVErrCode::AV_ERR_OK)
         return RohierStatus::RohierStatus_FailedToPushBufferToDecoder;
     return RohierStatus::RohierStatus_Success;
 }
@@ -171,9 +171,9 @@ RohierStatus OHCodecVideoDecoder::free_buffer(CodecBuffer &buffer, bool render) 
         return RohierStatus::RohierStatus_DecoderNotFound;
     OH_AVErrCode ret;
     if (render) {
-        ret = OH_VideoDecoder_RenderOutputBuffer(this->codec_, buffer.bufferIndex);
+        ret = OH_VideoDecoder_RenderOutputBuffer(this->codec_, buffer.buffer_index);
     } else {
-        ret = OH_VideoDecoder_FreeOutputBuffer(this->codec_, buffer.bufferIndex);
+        ret = OH_VideoDecoder_FreeOutputBuffer(this->codec_, buffer.buffer_index);
     }
     if (ret != OH_AVErrCode::AV_ERR_OK)
         return RohierStatus::RohierStatus_FailedToFreeBufferFromDecoder;

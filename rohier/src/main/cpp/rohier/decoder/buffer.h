@@ -21,21 +21,21 @@ enum CodecBufferType {
 };
 
 struct CodecBuffer {
-    uint32_t bufferIndex = 0;
+    uint32_t buffer_index = 0;
     uintptr_t *buffer = nullptr; // for OHCodec is OH_AVBuffer, for FFmpeg is AVFrame or sth?
-    uint8_t *bufferAddr = nullptr;
-    uint8_t *bufferSize = nullptr;
+    uint8_t *buffer_addr = nullptr;
+    int64_t buffer_size = 0;
     OH_AVCodecBufferAttr attr = {0, 0, 0, AVCODEC_BUFFER_FLAGS_NONE};
     int64_t pts = 0;
     CodecBufferType buffer_type = CodecBufferType::OHCodec; 
 
-    explicit CodecBuffer(uint8_t *addr) : bufferAddr(addr){};
-    CodecBuffer(uint8_t *addr, int32_t bufferSize)
-        : bufferAddr(addr), attr({0, bufferSize, 0, AVCODEC_BUFFER_FLAGS_NONE}){};
-    CodecBuffer(uint32_t argBufferIndex, OH_AVBuffer *argBuffer)
-        : bufferIndex(argBufferIndex), buffer(reinterpret_cast<uintptr_t *>(argBuffer))
+    explicit CodecBuffer(uint8_t *addr) : buffer_addr(addr){};
+    CodecBuffer(uint8_t *addr, int32_t buffer_size) // 好像没看到有地方用这个构造器
+        : buffer_addr(addr), attr({0, buffer_size, 0, AVCODEC_BUFFER_FLAGS_NONE}){};
+    CodecBuffer(uint32_t buffer_index, OH_AVBuffer *buffer)
+        : buffer_index(buffer_index), buffer(reinterpret_cast<uintptr_t *>(buffer))
     {
-        OH_AVBuffer_GetBufferAttr(argBuffer, &attr);
+        OH_AVBuffer_GetBufferAttr(buffer, &attr);
     };
 };
 
