@@ -15,12 +15,19 @@
 #include <mutex>
 #include <queue>
 
+enum CodecBufferType {
+    OHCodec = 0,
+    FFmpeg = 1
+};
+
 struct CodecBuffer {
     uint32_t bufferIndex = 0;
     uintptr_t *buffer = nullptr; // for OHCodec is OH_AVBuffer, for FFmpeg is AVFrame or sth?
     uint8_t *bufferAddr = nullptr;
     uint8_t *bufferSize = nullptr;
     OH_AVCodecBufferAttr attr = {0, 0, 0, AVCODEC_BUFFER_FLAGS_NONE};
+    int64_t pts = 0;
+    CodecBufferType buffer_type = CodecBufferType::OHCodec; 
 
     explicit CodecBuffer(uint8_t *addr) : bufferAddr(addr){};
     CodecBuffer(uint8_t *addr, int32_t bufferSize)

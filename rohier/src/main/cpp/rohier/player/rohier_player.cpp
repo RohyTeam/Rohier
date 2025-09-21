@@ -4,6 +4,7 @@
 #include "rohier/decoder/video/ohcodec_video_decoder.h"
 #include "rohier/demuxer/ohcodec_demuxer.h"
 #include "rohier/utils/rohier_logger.h"
+#include <cstdint>
 #include <unistd.h>
 
 using namespace std::chrono_literals;
@@ -520,30 +521,59 @@ void RohierPlayer::thread_video_decode_input() {
 }
 
 void RohierPlayer::thread_video_decode_output() {
-    this->frameInterval = MICROSECOND / this->video_context_->framerate;
+    // 解码输出循环
     while (true) {
-        thread_local auto lastPushTime = std::chrono::system_clock::now();
+        // 在给渲染送帧前缓存一个时间用来计算下一帧的时间，否则会出现音画不同步、视频画面延迟的问题
+        thread_local auto last_push_time = std::chrono::system_clock::now();
+        // 定义 last_frame_pts 而不是 start_frame 可以防止 seek 后出问题
+        // 同时可以解决动态帧率视频的播放
+        thread_local auto last_frame_pts = 0;
+        
+        // 没有开始就结束循环
         if (!this->started)
             break;
+        // 上锁
         std::unique_lock<std::mutex> lock(this->video_context_->outputMutex);
+        // 等待解码器通知后继续
         this->video_context_->outputCond.wait_for(lock, 5s, [this]() { return !this->started || !this->video_context_->outputBufferInfoQueue.empty(); });
+        // 再次确认没有开始就结束循环
         if (!this->started)
             break;
+        // 确保解码器成功解析送帧
         if (this->video_context_->outputBufferInfoQueue.empty())
             continue;
+        // 获取解码器送的帧
         CodecBuffer buffer = this->video_context_->outputBufferInfoQueue.front();
+        // 删除队列中已经获取的帧
         this->video_context_->outputBufferInfoQueue.pop();
+        // 确保当前帧是一个有内容的帧
+        // TODO: 目前是用 OHCodec 的方法判断的，得加抽象层
         if (buffer.attr.flags & AVCODEC_BUFFER_FLAGS_EOS)
             break;
+        // 增加已经获取的帧数量
         this->video_context_->outputFrameCount++;
         
+        // 解锁
         lock.unlock();
         
+        // 释放帧的同时送显
         if (this->video_decoder_->free_buffer(buffer, true) != RohierStatus::RohierStatus_Success)
             break;
+        
+        int64_t pts;
+        if (buffer.buffer_type == CodecBufferType::OHCodec) {
+            pts = buffer.attr.pts;
+        } else {
+            pts = buffer.pts;
+        }
+        
+        int64_t pts_delta = pts - last_frame_pts;
+        last_frame_pts = pts;
 
-        std::this_thread::sleep_until(lastPushTime + std::chrono::microseconds(this->frameInterval));
-        lastPushTime = std::chrono::system_clock::now();
+        std::this_thread::sleep_until(last_push_time + std::chrono::microseconds(pts_delta));
+        // 更新送显时间
+        // 这里用上一次送显时间直接加 pts delta 可以解决解码超时导致的画面延迟问题
+        last_push_time = last_push_time + std::chrono::microseconds(pts_delta);
     }
 }
 
