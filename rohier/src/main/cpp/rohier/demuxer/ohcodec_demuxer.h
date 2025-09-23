@@ -7,7 +7,6 @@
 #ifndef ROHIER_OHCODEC_DEMUXER_H
 #define ROHIER_OHCODEC_DEMUXER_H
 
-#include <multimedia/player_framework/native_avbuffer.h>
 #include <multimedia/player_framework/native_avdemuxer.h>
 #include <multimedia/player_framework/native_avsource.h>
 
@@ -19,6 +18,7 @@ public:
     ~OHCodecDemuxer() override;
     RohierStatus prepare(AVFormatContext* context, OH_AVSource* source, VideoMetadata &metadata) override;
     RohierStatus read_sample(int32_t trackId, CodecBuffer &buffer) override;
+    RohierStatus seek(int64_t position) override;
     RohierStatus release() override;
     
 private:
@@ -26,4 +26,4 @@ private:
     OH_AVDemuxer *demuxer_;
 };
 
-#endif //ROHIER_OHCODEC_DEMUXER_H
+#endif // ROHIER_OHCODEC_DEMUXER_H

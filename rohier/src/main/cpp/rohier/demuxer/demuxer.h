@@ -21,7 +21,8 @@ public:
     virtual ~Demuxer() {};
     virtual RohierStatus prepare(AVFormatContext* context, OH_AVSource* source, VideoMetadata &metadata) = 0;
     virtual RohierStatus read_sample(int32_t trackId, CodecBuffer &buffer) = 0;
+    virtual RohierStatus seek(int64_t position) = 0;
     virtual RohierStatus release() = 0;
 };
 
-#endif //ROHIER_DEMUXER_H
+#endif // ROHIER_DEMUXER_H

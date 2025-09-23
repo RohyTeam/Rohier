@@ -44,23 +44,27 @@ public:
     RohierStatus start();
     RohierStatus stop();
     RohierStatus release();
+    RohierStatus seek(int64_t position);
     
     std::shared_ptr<VideoMetadata> get_metadata();
     AVFormatContext* get_ffmpeg_avformat_context();
     OH_AVSource* get_ohcodec_avsource();
     
 private:
+    void release_threads();
+    
+private:
     RohierNativeWindow* window_;
     
     int* fd;
     
-    int frameInterval;
+    int64_t current_position;
     
     std::atomic<bool> started = {false};
     
     std::shared_ptr<VideoMetadata> video_metadata_;
-    std::shared_ptr<AVFormatContext> av_format_context_ptr;
-    std::shared_ptr<OH_AVSource> oh_avsource_context_ptr;
+    AVFormatContext* av_format_context;
+    OH_AVSource* oh_avsource;
     
     std::shared_ptr<Demuxer> demuxer_;
     std::shared_ptr<VideoDecoder> video_decoder_;
@@ -70,6 +74,9 @@ private:
     AudioCodecContext* audio_context_;
     
     std::mutex mutex_;
+    std::mutex seek_mutex_;
+    
+    std::condition_variable seek_condition;
     
     std::unique_ptr<std::thread> video_decode_input_thread_ = nullptr;
     std::unique_ptr<std::thread> video_decode_output_thread_ = nullptr;

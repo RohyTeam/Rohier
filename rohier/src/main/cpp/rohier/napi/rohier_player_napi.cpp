@@ -1,6 +1,7 @@
 #include "rohier_player_napi.h"
 #include "rohier/utils/napi_utils.h"
 #include "rohier/utils/rohier_logger.h"
+#include <cstdint>
 
 std::map<std::string, std::shared_ptr<RohierPlayer>> RohierPlayerNapi::players_;
 
@@ -93,12 +94,93 @@ napi_value RohierPlayerNapi::func_play(napi_env env, napi_callback_info info) {
     return nullptr;
 }
 
+napi_value RohierPlayerNapi::func_pause(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {};
+    napi_value jsThis;
+    
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, &jsThis, nullptr)) {
+        ROHIER_ERROR("RohierPlayerNapi", "Failed to get parameters");
+        return nullptr;
+    }
+    
+    std::string surfaceId;
+    NapiUtils::JsValueToString(env, args[0], 2048, surfaceId);
+    
+    std::shared_ptr<RohierPlayer> rohier_player = RohierPlayerNapi::players_[surfaceId];
+    
+    if (!rohier_player || !rohier_player.get()) {
+        ROHIER_ERROR("RohierPlayerNapi", "Cannot find targeted rohier player");
+        return nullptr;
+    }
+    
+    rohier_player->stop();
+
+    return nullptr;
+}
+
+napi_value RohierPlayerNapi::func_seek(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value args[2] = {};
+    napi_value jsThis;
+    
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, &jsThis, nullptr)) {
+        ROHIER_ERROR("RohierPlayerNapi", "Failed to get parameters");
+        return nullptr;
+    }
+    
+    std::string surfaceId;
+    NapiUtils::JsValueToString(env, args[0], 2048, surfaceId);
+    
+    int64_t position;
+    napi_get_value_int64(env, args[1], &position);
+    
+    std::shared_ptr<RohierPlayer> rohier_player = RohierPlayerNapi::players_[surfaceId];
+    
+    if (!rohier_player || !rohier_player.get()) {
+        ROHIER_ERROR("RohierPlayerNapi", "Cannot find targeted rohier player");
+        return nullptr;
+    }
+    
+    rohier_player->seek(position);
+
+    return nullptr;
+}
+
+napi_value RohierPlayerNapi::func_release(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {};
+    napi_value jsThis;
+    
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, &jsThis, nullptr)) {
+        ROHIER_ERROR("RohierPlayerNapi", "Failed to get parameters");
+        return nullptr;
+    }
+    
+    std::string surfaceId;
+    NapiUtils::JsValueToString(env, args[0], 2048, surfaceId);
+    
+    std::shared_ptr<RohierPlayer> rohier_player = RohierPlayerNapi::players_[surfaceId];
+    
+    if (!rohier_player || !rohier_player.get()) {
+        ROHIER_ERROR("RohierPlayerNapi", "Cannot find targeted rohier player");
+        return nullptr;
+    }
+    
+    rohier_player->release();
+
+    return nullptr;
+}
+
 napi_value RohierPlayerNapi::init_napi(napi_env env, napi_value exports) {
     ROHIER_INFO("RohierPlayerNapi", "Initializing rohier player napi");
     napi_property_descriptor desc[] = {
         { "init", nullptr, func_init, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "prepare", nullptr, func_prepare, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "play", nullptr, func_play, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "pause", nullptr, func_pause, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "seek", nullptr, func_seek, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "release", nullptr, func_release, nullptr, nullptr, nullptr, napi_default, nullptr },
     };
     
     if (napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc) == napi_ok) {

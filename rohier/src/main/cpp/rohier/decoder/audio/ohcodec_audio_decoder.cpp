@@ -238,15 +238,37 @@ RohierStatus OHCodecAudioDecoder::start() {
 }
 
 RohierStatus OHCodecAudioDecoder::stop() {
+    if (!this->codec_)
+        return RohierStatus::RohierStatus_DecoderNotFound;
+    this->context_->reset();
+    int ret = OH_AudioRenderer_Stop(this->audio_renderer_);
+    if (ret != OH_AVErrCode::AV_ERR_OK) {
+        ROHIER_ERROR("OHCodecAudioDecoder", "Failed to stop audio renderer with err code: %{public}d", ret);
+        return RohierStatus::RohierStatus_FailedToStopDecoder;
+    }
+    ret = OH_AudioCodec_Flush(this->codec_);
+    if (ret != OH_AVErrCode::AV_ERR_OK) {
+        ROHIER_ERROR("OHCodecAudioDecoder", "Failed to flush decoder with err code: %{public}d", ret);
+        return RohierStatus::RohierStatus_FailedToStopDecoder;
+    }
+    ret = OH_AudioCodec_Stop(this->codec_);
+    if (ret != OH_AVErrCode::AV_ERR_OK) {
+        ROHIER_ERROR("OHCodecAudioDecoder", "Failed to stop decoder with err code: %{public}d", ret);
+        return RohierStatus::RohierStatus_FailedToStopDecoder;
+    }
     return RohierStatus::RohierStatus_Success;
 }
 
 RohierStatus OHCodecAudioDecoder::release() {
+    this->stop();
     if (this->audio_renderer_) {
         OH_AudioRenderer_Release(this->audio_renderer_);
     }
     if (this->audio_stream_builder_) {
         OH_AudioStreamBuilder_Destroy(this->audio_stream_builder_);
+    }
+    if (this->codec_) {
+        OH_AudioCodec_Destroy(this->codec_);
     }
     return RohierStatus::RohierStatus_Success;
 }

@@ -46,7 +46,6 @@ struct VideoCodecContext {
     VideoMetadata* metadata = nullptr;
 
     uint32_t current_track_index;
-    double framerate;
 
     uint32_t inputFrameCount = 0;
     std::mutex inputMutex;
@@ -64,6 +63,15 @@ struct VideoCodecContext {
 
     std::vector<char> cache;
     int32_t remainlen = 0; 
+
+    void reset() {
+        this->inputFrameCount = 0;
+        this->inputBufferInfoQueue = std::queue<CodecBuffer>();
+        this->outputFrameCount = 0;
+        this->outputBufferInfoQueue = std::queue<CodecBuffer>();
+        this->renderQueue = std::queue<unsigned char>();
+        this->clear_cache();
+    }
 
     void clear_cache() {
         cache.clear();
@@ -98,7 +106,6 @@ struct AudioCodecContext {
     VideoMetadata* metadata = nullptr;
 
     uint32_t current_track_index;
-    double framerate;
 
     uint32_t inputFrameCount = 0;
     std::mutex inputMutex;
@@ -117,6 +124,16 @@ struct AudioCodecContext {
 
     std::vector<char> cache;
     int32_t remainlen = 0; 
+
+    void reset() {
+        this->inputFrameCount = 0;
+        this->inputBufferInfoQueue = std::queue<CodecBuffer>();
+        this->outputFrameCount = 0;
+        this->outputBufferInfoQueue = std::queue<CodecBuffer>();
+        this->renderQueue = std::queue<unsigned char>();
+        this->renderMetadataQueue = std::queue<unsigned char>();
+        this->clear_cache();
+    }
 
     void clear_cache() {
         cache.clear();

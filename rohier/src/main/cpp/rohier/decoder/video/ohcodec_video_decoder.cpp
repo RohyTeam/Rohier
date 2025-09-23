@@ -80,14 +80,9 @@ RohierStatus OHCodecVideoDecoder::prepare(RohierNativeWindow* window, VideoCodec
     }
     
     ROHIER_INFO("OHCodecVideoDecoder", "Getting track info");
-    // 设置视频长宽，因为我们使用 Surface 模式播放视频，所以 PixelFormat 可以直接设置成 AV_PIXEL_FORMAT_SURFACE_FORMAT
-    double frame_rate;
     OH_AVFormat* track_info = context->metadata->get_ohcodec_track(context->oh_src, context->current_track_index);
-    OH_AVFormat_GetDoubleValue(track_info, OH_MD_KEY_FRAME_RATE, &frame_rate);
     // TODO: extra data
     OH_AVFormat_Destroy(track_info);
-    
-    context->framerate = frame_rate;
     
     // 创建 OH_AVFormat 设置解码器参数
     ROHIER_INFO("OHCodecVideoDecoder", "Creating configure parameters");
@@ -153,8 +148,17 @@ RohierStatus OHCodecVideoDecoder::start() {
 RohierStatus OHCodecVideoDecoder::stop() {
     if (!this->codec_)
         return RohierStatus::RohierStatus_DecoderNotFound;
-    if (OH_VideoDecoder_Stop(this->codec_) != OH_AVErrCode::AV_ERR_OK)
+    this->context_->reset();
+    OH_AVErrCode ret = /*OH_VideoDecoder_Flush(this->codec_);
+    if (ret != OH_AVErrCode::AV_ERR_OK) {
+        ROHIER_ERROR("OHCodecVideoDecoder", "Failed to flush decoder with err code: %{public}d", ret);
         return RohierStatus::RohierStatus_FailedToStopDecoder;
+    }
+    ret =*/ OH_VideoDecoder_Stop(this->codec_);
+    if (ret != OH_AVErrCode::AV_ERR_OK) {
+        ROHIER_ERROR("OHCodecVideoDecoder", "Failed to stop decoder with err code: %{public}d", ret);
+        return RohierStatus::RohierStatus_FailedToStopDecoder;
+    }
     return RohierStatus::RohierStatus_Success;
 }
 
@@ -183,8 +187,7 @@ RohierStatus OHCodecVideoDecoder::free_buffer(CodecBuffer &buffer, bool render) 
 RohierStatus OHCodecVideoDecoder::release() {
     // 释放系统解码器
     if (this->codec_) {
-        OH_VideoDecoder_Flush(this->codec_);
-        OH_VideoDecoder_Stop(this->codec_);
+        this->stop();
         OH_VideoDecoder_Destroy(this->codec_);
     }
     return RohierStatus::RohierStatus_Success;

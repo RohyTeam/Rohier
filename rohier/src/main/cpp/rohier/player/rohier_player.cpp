@@ -263,8 +263,8 @@ RohierStatus RohierPlayer::prepare(VideoSource* source) {
         av_dict_free(&options);
     }
     
-    this->av_format_context_ptr = std::shared_ptr<AVFormatContext>(fmt_ctx, AVFormatContextReleaser());
-    this->oh_avsource_context_ptr = std::shared_ptr<OH_AVSource>(oh_src, OH_AVSourceReleaser());
+    this->av_format_context = fmt_ctx;
+    this->oh_avsource= oh_src;
     
     std::shared_ptr<VideoMetadata> video_metadata = fetch_metadata(fmt_ctx, oh_src);
     
@@ -288,7 +288,7 @@ RohierStatus RohierPlayer::prepare(VideoSource* source) {
     this->audio_context_->av_fmt = fmt_ctx;
     
     this->demuxer_ = std::make_shared<OHCodecDemuxer>();
-    if (this->demuxer_->prepare(this->av_format_context_ptr.get(), this->oh_avsource_context_ptr.get(), *video_metadata) != RohierStatus::RohierStatus_Success) {
+    if (this->demuxer_->prepare(this->av_format_context, this->oh_avsource, *video_metadata) != RohierStatus::RohierStatus_Success) {
         ROHIER_INFO("RohierPlayer", "Failed to prepare demuxer");
         return RohierStatus::RohierStatus_FailedToPrepareDemuxer;
     }
@@ -370,67 +370,6 @@ RohierStatus RohierPlayer::prepare(VideoSource* source) {
     return RohierStatus::RohierStatus_Success;
 }
 
-RohierStatus RohierPlayer::release() {
-    ROHIER_INFO("RohierPlayer", "Releasing player");
-    this->window_ = nullptr;
-    // 释放线程
-    if (this->video_decode_input_thread_ && this->video_decode_input_thread_->joinable()) {
-        this->video_decode_input_thread_->detach();
-        this->video_decode_input_thread_.reset();
-    }
-    if (this->video_decode_output_thread_ && this->video_decode_output_thread_->joinable()) {
-        this->video_decode_output_thread_->detach();
-        this->video_decode_output_thread_.reset();
-    }
-    if (this->audio_decode_input_thread_ && this->audio_decode_input_thread_->joinable()) {
-        this->audio_decode_input_thread_->detach();
-        this->audio_decode_input_thread_.reset();
-    }
-    if (this->audio_decode_output_thread_ && this->audio_decode_output_thread_->joinable()) {
-        this->audio_decode_output_thread_->detach();
-        this->audio_decode_output_thread_.reset();
-    }
-    if (this->video_context_) {
-        delete this->video_context_;
-        this->video_context_ = nullptr;
-    }
-    if (this->audio_context_) {
-        delete this->audio_context_;
-        this->audio_context_ = nullptr;
-    }
-    // 如果是本地文件，同时需要关闭本地文件的 fd
-    if (this->fd) {
-        close(*this->fd);
-        this->fd = nullptr;
-    }
-    // 释放视频元数据
-    if (this->video_metadata_) {
-        this->video_metadata_.reset();
-        this->video_metadata_ = nullptr;
-    }
-    // 释放 FFmpeg 媒体源
-    if (this->av_format_context_ptr) {
-        this->av_format_context_ptr.reset();
-    }
-    // 释放 ohos 媒体源
-    if (this->oh_avsource_context_ptr) {
-        this->oh_avsource_context_ptr.reset();
-    }
-    // 释放视频解码器
-    if (this->video_decoder_) {
-        this->video_decoder_.reset();
-    }
-    // 释放音频解码器
-    if (this->audio_decoder_) {
-        this->audio_decoder_.reset();
-    }
-    // 释放解封装器
-    if (this->demuxer_) {
-        this->demuxer_.reset();
-    }
-    return RohierStatus::RohierStatus_Success;
-}
-
 RohierStatus RohierPlayer::start() {
     ROHIER_INFO("RohierPlayer", "Starting player");
     std::unique_lock<std::mutex> lock(this->mutex_);
@@ -462,6 +401,7 @@ RohierStatus RohierPlayer::start() {
         this->release();
         return RohierStatus::RohierStatus_FailedToStartDecoder;
     }
+    this->demuxer_->seek(this->current_position);
     this->started = true;
     this->video_decode_input_thread_ = std::make_unique<std::thread>(&RohierPlayer::thread_video_decode_input, this);
     this->video_decode_output_thread_ = std::make_unique<std::thread>(&RohierPlayer::thread_video_decode_output, this);
@@ -478,6 +418,90 @@ RohierStatus RohierPlayer::start() {
 }
 
 RohierStatus RohierPlayer::stop() {
+    if (!this->started) {
+        ROHIER_ERROR("RohierPlayer", "Player not started yet");
+        return RohierStatus::RohierStatus_NotStartedYet;
+    }
+    this->started = false;
+    this->release_threads();
+    this->video_decoder_->stop();
+    this->audio_decoder_->stop();
+    return RohierStatus::RohierStatus_Success;
+}
+
+void RohierPlayer::release_threads() {
+    // 释放线程
+    if (this->video_decode_input_thread_ && this->video_decode_input_thread_->joinable()) {
+        this->video_decode_input_thread_->detach();
+        this->video_decode_input_thread_.reset();
+    }
+    if (this->video_decode_output_thread_ && this->video_decode_output_thread_->joinable()) {
+        this->video_decode_output_thread_->detach();
+        this->video_decode_output_thread_.reset();
+    }
+    if (this->audio_decode_input_thread_ && this->audio_decode_input_thread_->joinable()) {
+        this->audio_decode_input_thread_->detach();
+        this->audio_decode_input_thread_.reset();
+    }
+    if (this->audio_decode_output_thread_ && this->audio_decode_output_thread_->joinable()) {
+        this->audio_decode_output_thread_->detach();
+        this->audio_decode_output_thread_.reset();
+    }
+}
+
+RohierStatus RohierPlayer::release() {
+    ROHIER_INFO("RohierPlayer", "Releasing player");
+    if (this->started) {
+        this->stop();
+    }
+    if (this->video_context_) {
+        delete this->video_context_;
+        this->video_context_ = nullptr;
+    }
+    if (this->audio_context_) {
+        delete this->audio_context_;
+        this->audio_context_ = nullptr;
+    }
+    // 如果是本地文件，同时需要关闭本地文件的 fd
+    if (this->fd) {
+        close(*this->fd);
+        this->fd = nullptr;
+    }
+    // 释放视频元数据
+    if (this->video_metadata_) {
+        this->video_metadata_.reset();
+        this->video_metadata_ = nullptr;
+    }
+    // 释放视频解码器
+    if (this->video_decoder_) {
+        this->video_decoder_.reset();
+    }
+    // 释放音频解码器
+    if (this->audio_decoder_) {
+        this->audio_decoder_.reset();
+    }
+    // 释放解封装器
+    if (this->demuxer_) {
+        this->demuxer_.reset();
+    }
+    if (this->av_format_context) {
+        avformat_free_context(this->av_format_context);
+    }
+    if (this->oh_avsource) {
+        OH_AVSource_Destroy(this->oh_avsource);
+    }
+    
+    // 清除画面内容
+    
+    this->current_position = 0;
+    this->started = false;
+    return RohierStatus::RohierStatus_Success;
+}
+
+RohierStatus RohierPlayer::seek(int64_t position) {
+    this->stop();
+    this->current_position = position;
+    this->start();
     return RohierStatus::RohierStatus_Success;
 }
 
@@ -486,11 +510,11 @@ std::shared_ptr<VideoMetadata> RohierPlayer::get_metadata() {
 }
 
 AVFormatContext* RohierPlayer::get_ffmpeg_avformat_context() {
-    return this->av_format_context_ptr.get();
+    return this->av_format_context;
 }
 
 OH_AVSource* RohierPlayer::get_ohcodec_avsource() {
-    return this->oh_avsource_context_ptr.get();
+    return this->oh_avsource;
 }
 
 void RohierPlayer::thread_video_decode_input() {
@@ -526,11 +550,28 @@ void RohierPlayer::thread_video_decode_output() {
         thread_local std::chrono::time_point<std::chrono::system_clock> last_push_time = std::chrono::system_clock::now();
         // 定义 last_frame_pts 而不是 start_frame 可以防止 seek 后出问题
         // 同时可以解决动态帧率视频的播放
-        thread_local int64_t last_frame_pts = 0;
+        thread_local int64_t last_frame_pts = -1;
+        
+        auto since_epoch = last_push_time.time_since_epoch();
+        // 将持续时间转换为毫秒精度，然后转换为int64_t
+        auto last_push_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch).count();
+        ROHIER_ERROR("FUCK", "last_push_time_ms: %{public}lld, last_frame_pts is %{public}ld", last_push_time_ms, last_frame_pts);
         
         // 没有开始就结束循环
         if (!this->started)
             break;
+/*
+        std::unique_lock<std::mutex> seek_lock(this->seek_mutex_);
+        if (this->seeked) {
+            seek_condition.wait_for(seek_lock, 5s, []() { return true; });
+            last_frame_pts = -1;
+            this->seeked = false;
+            std::queue<CodecBuffer> empty;
+            std::swap(this->video_context_->outputBufferInfoQueue, empty);
+            seek_lock.unlock();
+            continue;
+        }
+        seek_lock.unlock();*/
         // 上锁
         std::unique_lock<std::mutex> lock(this->video_context_->outputMutex);
         // 等待解码器通知后继续
@@ -563,18 +604,24 @@ void RohierPlayer::thread_video_decode_output() {
             pts = buffer.pts;
         }
         
+        if (last_frame_pts < 0) {
+            last_push_time = std::chrono::system_clock::now();
+            last_frame_pts = pts;
+        }
+        
         int64_t pts_delta = pts - last_frame_pts;
         last_frame_pts = pts;
-
-        std::this_thread::sleep_until(last_push_time + std::chrono::microseconds(pts_delta));
         
         // 更新送显时间
         // 这里用上一次送显时间直接加 pts delta 可以解决解码超时导致的画面延迟问题
         last_push_time = last_push_time + std::chrono::microseconds(pts_delta);
+        if (last_frame_pts >= 0)
+            std::this_thread::sleep_until(last_push_time);      
+        
+        this->current_position = pts / 1000;
         
         // 释放帧的同时送显
-        if (this->video_decoder_->free_buffer(buffer, true) != RohierStatus::RohierStatus_Success)
-            break;
+        this->video_decoder_->free_buffer(buffer, true);
     }
 }
 

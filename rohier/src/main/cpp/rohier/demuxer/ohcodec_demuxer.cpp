@@ -61,6 +61,18 @@ RohierStatus OHCodecDemuxer::read_sample(int32_t trackId, CodecBuffer &buffer) {
     return RohierStatus::RohierStatus_Success;
 }
 
+RohierStatus OHCodecDemuxer::seek(int64_t position) {
+    ROHIER_INFO("OHCodecDemuxer", "Seeking to %{public}ld", position);
+    if (!this->demuxer_)
+        return RohierStatus::RohierStatus_DemuxerNotFound;
+    OH_AVErrCode ret = OH_AVDemuxer_SeekToTime(this->demuxer_, position, OH_AVSeekMode::SEEK_MODE_CLOSEST_SYNC);
+    if (ret != OH_AVErrCode::AV_ERR_OK) {
+        ROHIER_ERROR("OHCodecDemuxer", "Failed to seek to %{public}ld, err code: %{public}d", position, ret);
+        return RohierStatus::RohierStatus_FailedToSeek;
+    }
+    return RohierStatus::RohierStatus_Success;
+}
+
 RohierStatus OHCodecDemuxer::release() {
     if (demuxer_ != nullptr) {
         OH_AVDemuxer_Destroy(demuxer_);

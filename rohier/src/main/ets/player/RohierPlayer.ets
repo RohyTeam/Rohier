@@ -1,5 +1,6 @@
 import { RohierPlayerNapi } from '../napi/RohierPlayerNapi'
 import { util } from '@kit.ArkTS'
+import { VideoSource } from './VideoSource'
 
 export class RohierPlayer {
     readonly id: string = util.generateRandomUUID()
@@ -15,11 +16,24 @@ export class RohierPlayer {
         this.napi.init(this.id)
     }
 
-    public prepare(dest: string, isUrl: boolean) {
-        this.napi?.prepare(this.id, dest, isUrl)
+    public prepare(source: VideoSource) {
+        this.napi?.prepare(this.id, source.path, source.isUrl)
     }
 
     public play() {
         this.napi?.play(this.id)
     }
+
+    public pause() {
+        this.napi?.pause(this.id)
+    }
+
+    public seek(position: number) {
+        this.napi?.seek(this.id, position)
+    }
+
+    public release() {
+        this.napi?.release(this.id)
+    }
+
 }

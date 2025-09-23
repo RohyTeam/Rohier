@@ -24,6 +24,9 @@ private:
     static napi_value func_init(napi_env env, napi_callback_info info);
     static napi_value func_prepare(napi_env env, napi_callback_info info);
     static napi_value func_play(napi_env env, napi_callback_info info);
+    static napi_value func_pause(napi_env env, napi_callback_info info);
+    static napi_value func_seek(napi_env env, napi_callback_info info);
+    static napi_value func_release(napi_env env, napi_callback_info info);
     
     napi_env _env;
     napi_ref _wrapper;

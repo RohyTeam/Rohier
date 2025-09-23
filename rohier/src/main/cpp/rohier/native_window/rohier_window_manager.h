@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 #include "ace/xcomponent/native_interface_xcomponent.h"
+#include "native_window/external_window.h"
 #include "napi/native_api.h"
 
 struct RohierNativeWindow {
